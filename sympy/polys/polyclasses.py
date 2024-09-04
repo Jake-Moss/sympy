@@ -2458,7 +2458,7 @@ class DMP_Flint(DMP):
 
     @classmethod
     def _flint_mpoly(cls, rep, dom, lev):
-        assert dom in _flint_domains
+        assert _supported_flint_domain(dom)
         flint_cls, flint_ctx = cls._get_flint_mpoly_cls(dom)
         rep = dmp_to_dict(rep, lev, dom)
         # We fix lexical ordering here to make more methods directly compatible
@@ -2512,7 +2512,7 @@ class DMP_Flint(DMP):
 
     def to_DMP_Python(f):
         """Convert ``f`` to a Python native representation. """
-        return DMP_Python._new(dmp_from_dict(f.to_dict(), f.lev, f.dom), f.dom, f.lev)
+        return DMP_Python._new(f.to_list(), f.dom, f.lev)
 
     def to_tuple(f):
         """Convert ``f`` to a tuple representation with native coefficients. """
@@ -2742,7 +2742,7 @@ class DMP_Flint(DMP):
     def _integrate(f, m=1, j=0):
         """Computes the ``m``-th order indefinite integral of ``f`` in ``x_j``. """
         assert j == 0
-        if f.dom.is_QQ:
+        if f.dom.is_Field:
             rep = f._rep
             for i in range(m):
                 rep = rep.integral()
@@ -2777,9 +2777,9 @@ class DMP_Flint(DMP):
 
     def _invert(f, g):
         """Invert ``f`` modulo ``g``, if possible. """
-        if f.dom.is_QQ:
+        if f.dom.is_Field:
             gcd, F_inv, _ = f._rep.xgcd(g._rep)
-            if gcd != 1:
+            if gcd != 1:  # NOTE check comparisons to other types (see dup_flint note)
                 raise NotInvertible("zero divisor")
             return f.from_rep(F_inv, f.dom, f.lev)
         else:
@@ -2952,7 +2952,7 @@ class DMP_Flint(DMP):
     def factor_list(f):
         """Returns a list of irreducible factors of ``f``. """
 
-        if f.dom.is_ZZ:
+        if f.dom.is_ZZ or f.dom.is_FF:  # NOTE: check the FF thingo, whats it's deal
             # python-flint matches polys here
             coeff, factors = f._rep.factor()
             factors = [ (f.from_rep(g, f.dom, f.lev), k) for g, k in factors ]
@@ -3074,15 +3074,20 @@ class DMP_Flint(DMP):
     @property
     def is_irreducible(f):
         """Returns ``True`` if ``f`` has no factors over its domain. """
-        return f.to_DMP_Python().is_irreducible
+        return f.to_DMP_Python().is_irreducible  # NOTE: dup_flint does this differently
 
     @property
     def is_cyclotomic(f):
         """Returns ``True`` if ``f`` is a cyclotomic polynomial. """
+        if f.dom.is_QQ:
+            try:
+                f = f.convert(ZZ)
+            except CoercionFailed:
+                return False
         if f.dom.is_ZZ:
             return bool(f._rep.is_cyclotomic())
         else:
-            return f.to_DMP_Python().is_cyclotomic
+            return f.to_DMP_Python().is_cyclotomic  # NOTE: confirm this method, dup_flint just retrns False here
 
 
 def init_normal_DMF(num, den, lev, dom):
