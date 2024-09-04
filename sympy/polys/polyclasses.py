@@ -155,9 +155,11 @@ class DMP(CantSympify):
         # Ideally this checking would be handled by a static type checker.
         #
         #cls._validate_args(rep, dom, lev)
-        if flint is not None:
-            if lev == 0 and _supported_flint_domain(dom):
+        if flint is not None and _supported_flint_domain(dom):
+            if lev == 0:
                 return DUP_Flint._new(rep, dom, lev)
+            else:
+                return DMP_Flint._new(rep, dom, lev)
 
         return DMP_Python._new(rep, dom, lev)
 
@@ -184,9 +186,11 @@ class DMP(CantSympify):
         This method should be used when the domain or level is changed and it
         potentially becomes possible to convert from DMP_Python to DUP_Flint.
         """
-        if flint is not None:
-            if isinstance(f, DMP_Python) and f.lev == 0 and _supported_flint_domain(f.dom):
+        if flint is not None and isinstance(f, DMP_Python) and _supported_flint_domain(f.dom):
+            if f.lev == 0:
                 return DUP_Flint.new(f._rep, f.dom, f.lev)
+            else:
+                return DMP_Flint.new(f._rep, f.dom, f.lev)
 
         return f
 
@@ -224,13 +228,13 @@ class DMP(CantSympify):
     def from_monoms_coeffs(cls, monoms, coeffs, lev, dom):
         return cls(dict(list(zip(monoms, coeffs))), dom, lev)
 
-    def convert(f, dom):
+    def convert(f, dom):  # NOTE: check these, what should actually be converted to what
         """Convert ``f`` to a ``DMP`` over the new domain. """
         if f.dom == dom:
             return f
         elif f.lev or flint is None:
             return f._convert(dom)
-        elif isinstance(f, DUP_Flint):
+        elif isinstance(f, (DUP_Flint, DMP_Flint)):
             if _supported_flint_domain(dom):
                 return f._convert(dom)
             else:
@@ -2995,7 +2999,7 @@ class DMP_Flint(DMP):
         # Convert the factors to lists and use _sort_factors from polys
         factors = [ (g.to_list(), k) for g, k in factors ]
         factors = _sort_factors(factors, multiple=True)
-        to_dmp_flint = lambda g: f.from_rep(f._cls(dmp_to_dict(g, f.lev), f._rep.context()))  # FIXME this is wrong
+        to_dmp_flint = lambda g: f.from_rep(f._cls(dmp_to_dict(g, f.lev), f._rep.context()), f.dom, f.lev)  # FIXME this is wrong
         return [ (to_dmp_flint(g), k) for g, k in factors ]
 
     def _isolate_real_roots(f, eps, inf, sup, fast):
