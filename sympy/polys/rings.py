@@ -569,7 +569,15 @@ class PolyRing(DefaultPrinting, IPolys):
             return poly
 
 
-class PolyElement(DomainElement, DefaultPrinting, CantSympify, dict):
+class _PolyElement(DomainElement, DefaultPrinting, CantSympify):
+        pass
+
+
+class PolyElement_Flint(_PolyElement):
+        pass
+
+
+class PolyElement(_PolyElement, dict):
     """Element of multivariate distributed polynomial ring. """
 
     def new(self, init):
